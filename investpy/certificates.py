@@ -233,7 +233,7 @@ def get_certificate_recent_data(
     if country is None:
         raise ValueError("ERR#0039: country can not be None, it should be a str.")
 
-    if country is not None and not isinstance(country, str):
+    if not isinstance(country, str):
         raise ValueError("ERR#0025: specified country value not valid.")
 
     if not isinstance(as_json, bool):
@@ -339,73 +339,68 @@ def get_certificate_recent_data(
 
     if req.status_code != 200:
         raise ConnectionError(
-            "ERR#0015: error " + str(req.status_code) + ", try again later."
+            f"ERR#0015: error {str(req.status_code)}, try again later."
         )
 
     root_ = fromstring(req.text)
     path_ = root_.xpath(".//table[@id='curr_table']/tbody/tr")
 
-    result = list()
+    result = []
 
-    if path_:
-        for elements_ in path_:
-            if elements_.xpath(".//td")[0].text_content() == "No results found":
-                raise IndexError(
-                    "ERR#0102: certificate information unavailable or not found."
-                )
-
-            info = []
-
-            for nested_ in elements_.xpath(".//td"):
-                info.append(nested_.get("data-real-value"))
-
-            certificate_date = datetime.strptime(
-                str(
-                    datetime.fromtimestamp(int(info[0]), tz=pytz.timezone("GMT")).date()
-                ),
-                "%Y-%m-%d",
-            )
-
-            certificate_close = float(info[1].replace(",", ""))
-            certificate_open = float(info[2].replace(",", ""))
-            certificate_high = float(info[3].replace(",", ""))
-            certificate_low = float(info[4].replace(",", ""))
-
-            result.insert(
-                len(result),
-                Data(
-                    certificate_date,
-                    certificate_open,
-                    certificate_high,
-                    certificate_low,
-                    certificate_close,
-                    None,
-                    None,
-                    None,
-                ),
-            )
-
-        if order in ["ascending", "asc"]:
-            result = result[::-1]
-        elif order in ["descending", "desc"]:
-            result = result
-
-        if as_json is True:
-            json_ = {
-                "name": name,
-                "recent": [value.certificate_as_json() for value in result],
-            }
-
-            return json.dumps(json_, sort_keys=False)
-        elif as_json is False:
-            df = pd.DataFrame.from_records(
-                [value.certificate_to_dict() for value in result]
-            )
-            df.set_index("Date", inplace=True)
-
-            return df
-    else:
+    if not path_:
         raise RuntimeError("ERR#0004: data retrieval error while scraping.")
+    for elements_ in path_:
+        if elements_.xpath(".//td")[0].text_content() == "No results found":
+            raise IndexError(
+                "ERR#0102: certificate information unavailable or not found."
+            )
+
+        info = [nested_.get("data-real-value") for nested_ in elements_.xpath(".//td")]
+        certificate_date = datetime.strptime(
+            str(
+                datetime.fromtimestamp(int(info[0]), tz=pytz.timezone("GMT")).date()
+            ),
+            "%Y-%m-%d",
+        )
+
+        certificate_close = float(info[1].replace(",", ""))
+        certificate_open = float(info[2].replace(",", ""))
+        certificate_high = float(info[3].replace(",", ""))
+        certificate_low = float(info[4].replace(",", ""))
+
+        result.insert(
+            len(result),
+            Data(
+                certificate_date,
+                certificate_open,
+                certificate_high,
+                certificate_low,
+                certificate_close,
+                None,
+                None,
+                None,
+            ),
+        )
+
+    if order in ["ascending", "asc"]:
+        result = result[::-1]
+    elif order in ["descending", "desc"]:
+        result = result
+
+    if as_json is True:
+        json_ = {
+            "name": name,
+            "recent": [value.certificate_as_json() for value in result],
+        }
+
+        return json.dumps(json_, sort_keys=False)
+    elif as_json is False:
+        df = pd.DataFrame.from_records(
+            [value.certificate_to_dict() for value in result]
+        )
+        df.set_index("Date", inplace=True)
+
+        return df
 
 
 def get_certificate_historical_data(
@@ -497,7 +492,7 @@ def get_certificate_historical_data(
     if country is None:
         raise ValueError("ERR#0039: country can not be None, it should be a str.")
 
-    if country is not None and not isinstance(country, str):
+    if not isinstance(country, str):
         raise ValueError("ERR#0025: specified country value not valid.")
 
     if not isinstance(as_json, bool):
@@ -560,7 +555,7 @@ def get_certificate_historical_data(
 
     flag = True
 
-    while flag is True:
+    while flag:
         diff = end_date.year - start_date.year
 
         if diff > 19:
@@ -639,7 +634,9 @@ def get_certificate_historical_data(
 
     header = symbol + " Historical Data"
 
-    final = list()
+    final = []
+
+    url = "https://www.investing.com/instruments/HistoricalDataAjax"
 
     for index in range(len(date_interval["intervals"])):
         interval_counter += 1
@@ -664,13 +661,11 @@ def get_certificate_historical_data(
             "Connection": "keep-alive",
         }
 
-        url = "https://www.investing.com/instruments/HistoricalDataAjax"
-
         req = requests.post(url, headers=head, data=params)
 
         if req.status_code != 200:
             raise ConnectionError(
-                "ERR#0015: error " + str(req.status_code) + ", try again later."
+                f"ERR#0015: error {str(req.status_code)}, try again later."
             )
 
         if not req.text:
@@ -679,75 +674,70 @@ def get_certificate_historical_data(
         root_ = fromstring(req.text)
         path_ = root_.xpath(".//table[@id='curr_table']/tbody/tr")
 
-        result = list()
+        result = []
 
-        if path_:
-            for elements_ in path_:
-                if elements_.xpath(".//td")[0].text_content() == "No results found":
-                    if interval_counter < interval_limit:
-                        data_flag = False
-                    else:
-                        raise IndexError(
-                            "ERR#0102: certificate information unavailable or not"
-                            " found."
-                        )
-                else:
-                    data_flag = True
-
-                info = []
-
-                for nested_ in elements_.xpath(".//td"):
-                    info.append(nested_.get("data-real-value"))
-
-                if data_flag is True:
-                    certificate_date = datetime.strptime(
-                        str(
-                            datetime.fromtimestamp(
-                                int(info[0]), tz=pytz.timezone("GMT")
-                            ).date()
-                        ),
-                        "%Y-%m-%d",
-                    )
-
-                    certificate_close = float(info[1].replace(",", ""))
-                    certificate_open = float(info[2].replace(",", ""))
-                    certificate_high = float(info[3].replace(",", ""))
-                    certificate_low = float(info[4].replace(",", ""))
-
-                    result.insert(
-                        len(result),
-                        Data(
-                            certificate_date,
-                            certificate_open,
-                            certificate_high,
-                            certificate_low,
-                            certificate_close,
-                            None,
-                            None,
-                            None,
-                        ),
-                    )
-
-            if data_flag is True:
-                if order in ["ascending", "asc"]:
-                    result = result[::-1]
-                elif order in ["descending", "desc"]:
-                    result = result
-
-                if as_json is True:
-                    json_list = [value.certificate_as_json() for value in result]
-
-                    final.append(json_list)
-                elif as_json is False:
-                    df = pd.DataFrame.from_records(
-                        [value.certificate_to_dict() for value in result]
-                    )
-                    df.set_index("Date", inplace=True)
-
-                    final.append(df)
-        else:
+        if not path_:
             raise RuntimeError("ERR#0004: data retrieval error while scraping.")
 
+        for elements_ in path_:
+            if elements_.xpath(".//td")[0].text_content() == "No results found":
+                if interval_counter < interval_limit:
+                    data_flag = False
+                else:
+                    raise IndexError(
+                        "ERR#0102: certificate information unavailable or not"
+                        " found."
+                    )
+            else:
+                data_flag = True
+
+            info = [nested_.get("data-real-value") for nested_ in elements_.xpath(".//td")]
+            if data_flag is True:
+                certificate_date = datetime.strptime(
+                    str(
+                        datetime.fromtimestamp(
+                            int(info[0]), tz=pytz.timezone("GMT")
+                        ).date()
+                    ),
+                    "%Y-%m-%d",
+                )
+
+                certificate_close = float(info[1].replace(",", ""))
+                certificate_open = float(info[2].replace(",", ""))
+                certificate_high = float(info[3].replace(",", ""))
+                certificate_low = float(info[4].replace(",", ""))
+
+                result.insert(
+                    len(result),
+                    Data(
+                        certificate_date,
+                        certificate_open,
+                        certificate_high,
+                        certificate_low,
+                        certificate_close,
+                        None,
+                        None,
+                        None,
+                    ),
+                )
+
+        if data_flag is True:
+            if order in ["ascending", "asc"]:
+                result = result[::-1]
+            elif order in ["descending", "desc"]:
+                result = result
+
+            if as_json is True:
+                json_list = [value.certificate_as_json() for value in result]
+
+                final.append(json_list)
+            elif as_json is False:
+                df = pd.DataFrame.from_records(
+                    [value.certificate_to_dict() for value in result]
+                )
+                df.set_index("Date", inplace=True)
+
+                final.append(df)
     if order in ["descending", "desc"]:
         final.reverse()
 

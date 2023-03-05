@@ -60,10 +60,7 @@ def commodities_as_df(group=None):
     commodities.drop(columns=["tag", "id"], inplace=True)
     commodities = commodities.where(pd.notnull(commodities), None)
 
-    if group is None:
-        commodities.reset_index(drop=True, inplace=True)
-        return commodities
-    else:
+    if group is not None:
         group = unidecode(group.strip().lower())
 
         if group not in commodity_groups_list():
@@ -72,9 +69,8 @@ def commodities_as_df(group=None):
             )
 
         commodities = commodities[commodities["group"] == group]
-        commodities.reset_index(drop=True, inplace=True)
-
-        return commodities
+    commodities.reset_index(drop=True, inplace=True)
+    return commodities
 
 
 def commodities_as_list(group=None):
@@ -125,15 +121,14 @@ def commodities_as_list(group=None):
 
     if group is None:
         return commodities["name"].tolist()
-    else:
-        group = unidecode(group.strip().lower())
+    group = unidecode(group.strip().lower())
 
-        if group not in commodity_groups_list():
-            raise ValueError(
-                "ERR#0077: introduced group does not exists or is not a valid one."
-            )
+    if group not in commodity_groups_list():
+        raise ValueError(
+            "ERR#0077: introduced group does not exists or is not a valid one."
+        )
 
-        return commodities[commodities["group"] == group]["name"].tolist()
+    return commodities[commodities["group"] == group]["name"].tolist()
 
 
 def commodities_as_dict(group=None, columns=None, as_json=False):
@@ -203,42 +198,41 @@ def commodities_as_dict(group=None, columns=None, as_json=False):
 
     if columns is None:
         columns = commodities.columns.tolist()
-    else:
-        if not isinstance(columns, list):
-            raise ValueError(
-                "ERR#0020: specified columns argument is not a list, it can just be"
-                " list type."
-            )
+    elif not isinstance(columns, list):
+        raise ValueError(
+            "ERR#0020: specified columns argument is not a list, it can just be"
+            " list type."
+        )
 
-    if not all(column in commodities.columns.tolist() for column in columns):
+    if any(column not in commodities.columns.tolist() for column in columns):
         raise ValueError(
             "ERR#0021: specified columns does not exist, available columns are "
             "<title, country, name, full_name, currency, group>"
         )
 
     if group is None:
-        if as_json:
-            return json.dumps(commodities[columns].to_dict(orient="records"))
-        else:
-            return commodities[columns].to_dict(orient="records")
-    else:
-        group = unidecode(group.strip().lower())
+        return (
+            json.dumps(commodities[columns].to_dict(orient="records"))
+            if as_json
+            else commodities[columns].to_dict(orient="records")
+        )
+    group = unidecode(group.strip().lower())
 
-        if group not in commodity_groups_list():
-            raise ValueError(
-                "ERR#0077: introduced group does not exists or is not a valid one."
-            )
+    if group not in commodity_groups_list():
+        raise ValueError(
+            "ERR#0077: introduced group does not exists or is not a valid one."
+        )
 
-        if as_json:
-            return json.dumps(
-                commodities[commodities["group"] == group][columns].to_dict(
-                    orient="records"
-                )
-            )
-        else:
-            return commodities[commodities["group"] == group][columns].to_dict(
+    if as_json:
+        return json.dumps(
+            commodities[commodities["group"] == group][columns].to_dict(
                 orient="records"
             )
+        )
+    else:
+        return commodities[commodities["group"] == group][columns].to_dict(
+            orient="records"
+        )
 
 
 def commodity_groups_list():

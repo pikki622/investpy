@@ -243,7 +243,7 @@ def get_etf_recent_data(
     if country is None:
         raise ValueError("ERR#0039: country can not be None, it should be a str.")
 
-    if country is not None and not isinstance(country, str):
+    if not isinstance(country, str):
         raise ValueError("ERR#0025: specified country value not valid.")
 
     if stock_exchange is not None and not isinstance(stock_exchange, str):
@@ -333,16 +333,17 @@ def get_etf_recent_data(
         )
 
         if stock_exchange:
-            if stock_exchange.lower() not in etfs["stock_exchange"].str.lower():
+            if stock_exchange.lower() in etfs["stock_exchange"].str.lower():
+                etf_exchange = etfs.loc[
+                    (etfs["stock_exchange"].str.lower() == stock_exchange.lower()).idxmax(),
+                    "stock_exchange",
+                ]
+            else:
                 raise ValueError(
                     "ERR#0126: introduced stock_exchange value does not exists, leave"
                     " this parameter to None to use default stock_exchange."
                 )
 
-            etf_exchange = etfs.loc[
-                (etfs["stock_exchange"].str.lower() == stock_exchange.lower()).idxmax(),
-                "stock_exchange",
-            ]
         else:
             found_etfs = etfs[etfs["name"].apply(unidecode).str.lower() == etf]
 
@@ -364,32 +365,31 @@ def get_etf_recent_data(
                 (etfs["name"].apply(unidecode).str.lower() == etf).idxmax(),
                 "stock_exchange",
             ]
+    elif stock_exchange:
+        if stock_exchange.lower() not in etfs["stock_exchange"].str.lower():
+            raise ValueError(
+                "ERR#0126: introduced stock_exchange value does not exists, leave"
+                " this parameter to None to use default stock_exchange."
+            )
+
+        if def_exchange["stock_exchange"].lower() != stock_exchange.lower():
+            warnings.warn(
+                "Selected stock_exchange is not the default one of the introduced"
+                " ETF. "
+                + 'Default country is: "'
+                + def_exchange["country"]
+                + '" and default stock_exchange: "'
+                + def_exchange["stock_exchange"].lower()
+                + '".',
+                Warning,
+            )
+
+        etf_exchange = etfs.loc[
+            (etfs["stock_exchange"].str.lower() == stock_exchange.lower()).idxmax(),
+            "stock_exchange",
+        ]
     else:
-        if stock_exchange:
-            if stock_exchange.lower() not in etfs["stock_exchange"].str.lower():
-                raise ValueError(
-                    "ERR#0126: introduced stock_exchange value does not exists, leave"
-                    " this parameter to None to use default stock_exchange."
-                )
-
-            if def_exchange["stock_exchange"].lower() != stock_exchange.lower():
-                warnings.warn(
-                    "Selected stock_exchange is not the default one of the introduced"
-                    " ETF. "
-                    + 'Default country is: "'
-                    + def_exchange["country"]
-                    + '" and default stock_exchange: "'
-                    + def_exchange["stock_exchange"].lower()
-                    + '".',
-                    Warning,
-                )
-
-            etf_exchange = etfs.loc[
-                (etfs["stock_exchange"].str.lower() == stock_exchange.lower()).idxmax(),
-                "stock_exchange",
-            ]
-        else:
-            etf_exchange = def_exchange["stock_exchange"]
+        etf_exchange = def_exchange["stock_exchange"]
 
     symbol = etfs.loc[
         (
@@ -447,68 +447,63 @@ def get_etf_recent_data(
 
     if req.status_code != 200:
         raise ConnectionError(
-            "ERR#0015: error " + str(req.status_code) + ", try again later."
+            f"ERR#0015: error {str(req.status_code)}, try again later."
         )
 
     root_ = fromstring(req.text)
     path_ = root_.xpath(".//table[@id='curr_table']/tbody/tr")
 
-    result = list()
+    result = []
 
-    if path_:
-        for elements_ in path_:
-            if elements_.xpath(".//td")[0].text_content() == "No results found":
-                raise IndexError("ERR#0010: etf information unavailable or not found.")
-
-            info = []
-
-            for nested_ in elements_.xpath(".//td"):
-                info.append(nested_.get("data-real-value"))
-
-            etf_date = datetime.strptime(
-                str(
-                    datetime.fromtimestamp(int(info[0]), tz=pytz.timezone("GMT")).date()
-                ),
-                "%Y-%m-%d",
-            )
-
-            etf_close = float(info[1].replace(",", ""))
-            etf_open = float(info[2].replace(",", ""))
-            etf_high = float(info[3].replace(",", ""))
-            etf_low = float(info[4].replace(",", ""))
-
-            etf_volume = int(info[5])
-
-            result.insert(
-                len(result),
-                Data(
-                    etf_date,
-                    etf_open,
-                    etf_high,
-                    etf_low,
-                    etf_close,
-                    etf_volume,
-                    etf_currency,
-                    etf_exchange,
-                ),
-            )
-
-        if order in ["ascending", "asc"]:
-            result = result[::-1]
-        elif order in ["descending", "desc"]:
-            result = result
-
-        if as_json is True:
-            json_ = {"name": name, "recent": [value.etf_as_json() for value in result]}
-
-            return json.dumps(json_, sort_keys=False)
-        elif as_json is False:
-            df = pd.DataFrame.from_records([value.etf_to_dict() for value in result])
-            df.set_index("Date", inplace=True)
-
-            return df
-    else:
+    if not path_:
         raise RuntimeError("ERR#0004: data retrieval error while scraping.")
+    for elements_ in path_:
+        if elements_.xpath(".//td")[0].text_content() == "No results found":
+            raise IndexError("ERR#0010: etf information unavailable or not found.")
+
+        info = [nested_.get("data-real-value") for nested_ in elements_.xpath(".//td")]
+        etf_date = datetime.strptime(
+            str(
+                datetime.fromtimestamp(int(info[0]), tz=pytz.timezone("GMT")).date()
+            ),
+            "%Y-%m-%d",
+        )
+
+        etf_close = float(info[1].replace(",", ""))
+        etf_open = float(info[2].replace(",", ""))
+        etf_high = float(info[3].replace(",", ""))
+        etf_low = float(info[4].replace(",", ""))
+
+        etf_volume = int(info[5])
+
+        result.insert(
+            len(result),
+            Data(
+                etf_date,
+                etf_open,
+                etf_high,
+                etf_low,
+                etf_close,
+                etf_volume,
+                etf_currency,
+                etf_exchange,
+            ),
+        )
+
+    if order in ["ascending", "asc"]:
+        result = result[::-1]
+    elif order in ["descending", "desc"]:
+        result = result
+
+    if as_json is True:
+        json_ = {"name": name, "recent": [value.etf_as_json() for value in result]}
+
+        return json.dumps(json_, sort_keys=False)
+    elif as_json is False:
+        df = pd.DataFrame.from_records([value.etf_to_dict() for value in result])
+        df.set_index("Date", inplace=True)
+
+        return df
 
 
 def get_etf_historical_data(

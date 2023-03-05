@@ -112,7 +112,7 @@ def currency_crosses_as_df(base=None, second=None):
             currency_crosses.reset_index(drop=True, inplace=True)
 
             return currency_crosses
-    elif second is not None:
+    else:
         second = unidecode(second.strip().upper())
 
         if second not in available_currencies:
@@ -229,7 +229,7 @@ def currency_crosses_as_list(base=None, second=None):
             currency_crosses.reset_index(drop=True, inplace=True)
 
             return currency_crosses["name"].tolist()
-    elif second is not None:
+    else:
         second = unidecode(second.strip().upper())
 
         if second not in available_currencies:
@@ -321,14 +321,15 @@ def currency_crosses_as_dict(base=None, second=None, columns=None, as_json=False
 
     if columns is None:
         columns = currency_crosses.columns.tolist()
-    else:
-        if not isinstance(columns, list):
-            raise ValueError(
-                "ERR#0020: specified columns argument is not a list, it can just be"
-                " list type."
-            )
+    elif not isinstance(columns, list):
+        raise ValueError(
+            "ERR#0020: specified columns argument is not a list, it can just be"
+            " list type."
+        )
 
-    if not all(column in currency_crosses.columns.tolist() for column in columns):
+    if any(
+        column not in currency_crosses.columns.tolist() for column in columns
+    ):
         raise ValueError(
             "ERR#0021: specified columns does not exist, available columns are "
             "<name, full_name, base, base_name, second, second_name>"
@@ -337,10 +338,6 @@ def currency_crosses_as_dict(base=None, second=None, columns=None, as_json=False
     if base is None and second is None:
         currency_crosses.reset_index(drop=True, inplace=True)
 
-        if as_json:
-            return json.dumps(currency_crosses[columns].to_dict(orient="records"))
-        else:
-            return currency_crosses[columns].to_dict(orient="records")
     elif base is not None:
         base = unidecode(base.strip().upper())
 
@@ -364,14 +361,7 @@ def currency_crosses_as_dict(base=None, second=None, columns=None, as_json=False
 
             currency_crosses.reset_index(drop=True, inplace=True)
 
-            if len(currency_crosses) > 0:
-                if as_json:
-                    return json.dumps(
-                        currency_crosses[columns].to_dict(orient="records")
-                    )
-                else:
-                    return currency_crosses[columns].to_dict(orient="records")
-            else:
+            if len(currency_crosses) <= 0:
                 raise ValueError(
                     "ERR#0054: the introduced currency cross "
                     + base
@@ -383,11 +373,7 @@ def currency_crosses_as_dict(base=None, second=None, columns=None, as_json=False
             currency_crosses = currency_crosses[currency_crosses["base"] == base]
             currency_crosses.reset_index(drop=True, inplace=True)
 
-            if as_json:
-                return json.dumps(currency_crosses[columns].to_dict(orient="records"))
-            else:
-                return currency_crosses[columns].to_dict(orient="records")
-    elif second is not None:
+    else:
         second = unidecode(second.strip().upper())
 
         if second not in available_currencies:
@@ -400,10 +386,10 @@ def currency_crosses_as_dict(base=None, second=None, columns=None, as_json=False
         ]
         currency_crosses.reset_index(drop=True, inplace=True)
 
-        if as_json:
-            return json.dumps(currency_crosses[columns].to_dict(orient="records"))
-        else:
-            return currency_crosses[columns].to_dict(orient="records")
+    if as_json:
+        return json.dumps(currency_crosses[columns].to_dict(orient="records"))
+    else:
+        return currency_crosses[columns].to_dict(orient="records")
 
 
 def available_currencies_as_list():

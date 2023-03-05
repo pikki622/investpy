@@ -58,10 +58,7 @@ def indices_as_df(country=None):
     indices.drop(columns=["tag", "id"], inplace=True)
     indices = indices.where(pd.notnull(indices), None)
 
-    if country is None:
-        indices.reset_index(drop=True, inplace=True)
-        return indices
-    else:
+    if country is not None:
         country = unidecode(country.strip().lower())
 
         if country not in index_countries_as_list():
@@ -70,9 +67,8 @@ def indices_as_df(country=None):
             )
 
         indices = indices[indices["country"] == country]
-        indices.reset_index(drop=True, inplace=True)
-
-        return indices
+    indices.reset_index(drop=True, inplace=True)
+    return indices
 
 
 def indices_as_list(country=None):
@@ -123,15 +119,14 @@ def indices_as_list(country=None):
 
     if country is None:
         return indices["name"].tolist()
-    else:
-        country = unidecode(country.strip().lower())
+    country = unidecode(country.strip().lower())
 
-        if country not in index_countries_as_list():
-            raise ValueError(
-                "ERR#0034: country " + country + " not found, check if it is correct."
-            )
+    if country not in index_countries_as_list():
+        raise ValueError(
+            "ERR#0034: country " + country + " not found, check if it is correct."
+        )
 
-        return indices[indices["country"] == country]["name"].tolist()
+    return indices[indices["country"] == country]["name"].tolist()
 
 
 def indices_as_dict(country=None, columns=None, as_json=False):
@@ -200,42 +195,41 @@ def indices_as_dict(country=None, columns=None, as_json=False):
 
     if columns is None:
         columns = indices.columns.tolist()
-    else:
-        if not isinstance(columns, list):
-            raise ValueError(
-                "ERR#0020: specified columns argument is not a list, it can just be"
-                " list type."
-            )
+    elif not isinstance(columns, list):
+        raise ValueError(
+            "ERR#0020: specified columns argument is not a list, it can just be"
+            " list type."
+        )
 
-    if not all(column in indices.columns.tolist() for column in columns):
+    if any(column not in indices.columns.tolist() for column in columns):
         raise ValueError(
             "ERR#0023: specified columns does not exist, available columns are "
             "<country, name, full_name, symbol, currency, class, market>"
         )
 
     if country is None:
-        if as_json:
-            return json.dumps(indices[columns].to_dict(orient="records"))
-        else:
-            return indices[columns].to_dict(orient="records")
-    else:
-        country = unidecode(country.strip().lower())
+        return (
+            json.dumps(indices[columns].to_dict(orient="records"))
+            if as_json
+            else indices[columns].to_dict(orient="records")
+        )
+    country = unidecode(country.strip().lower())
 
-        if country not in index_countries_as_list():
-            raise ValueError(
-                "ERR#0034: country " + country + " not found, check if it is correct."
-            )
+    if country not in index_countries_as_list():
+        raise ValueError(
+            "ERR#0034: country " + country + " not found, check if it is correct."
+        )
 
-        if as_json:
-            return json.dumps(
-                indices[indices["country"] == country][columns].to_dict(
-                    orient="records"
-                )
-            )
-        else:
-            return indices[indices["country"] == country][columns].to_dict(
+    if as_json:
+        return json.dumps(
+            indices[indices["country"] == country][columns].to_dict(
                 orient="records"
             )
+        )
+    else:
+        return indices[indices["country"] == country][columns].to_dict(
+            orient="records"
+        )
 
 
 def index_countries_as_list():

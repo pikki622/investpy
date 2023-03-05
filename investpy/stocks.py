@@ -226,7 +226,7 @@ def get_stock_recent_data(
     if country is None:
         raise ValueError("ERR#0039: country can not be None, it should be a str.")
 
-    if country is not None and not isinstance(country, str):
+    if not isinstance(country, str):
         raise ValueError("ERR#0025: specified country value not valid.")
 
     if not isinstance(as_json, bool):
@@ -331,73 +331,68 @@ def get_stock_recent_data(
 
     if req.status_code != 200:
         raise ConnectionError(
-            "ERR#0015: error " + str(req.status_code) + ", try again later."
+            f"ERR#0015: error {str(req.status_code)}, try again later."
         )
 
     root_ = fromstring(req.text)
     path_ = root_.xpath(".//table[@id='curr_table']/tbody/tr")
 
-    result = list()
+    result = []
 
-    if path_:
-        for elements_ in path_:
-            if elements_.xpath(".//td")[0].text_content() == "No results found":
-                raise IndexError(
-                    "ERR#0007: stock information unavailable or not found."
-                )
-
-            info = []
-
-            for nested_ in elements_.xpath(".//td"):
-                info.append(nested_.get("data-real-value"))
-
-            stock_date = datetime.strptime(
-                str(
-                    datetime.fromtimestamp(int(info[0]), tz=pytz.timezone("GMT")).date()
-                ),
-                "%Y-%m-%d",
-            )
-
-            stock_close = float(info[1].replace(",", ""))
-            stock_open = float(info[2].replace(",", ""))
-            stock_high = float(info[3].replace(",", ""))
-            stock_low = float(info[4].replace(",", ""))
-
-            stock_volume = int(info[5])
-
-            result.insert(
-                len(result),
-                Data(
-                    stock_date,
-                    stock_open,
-                    stock_high,
-                    stock_low,
-                    stock_close,
-                    stock_volume,
-                    stock_currency,
-                    None,
-                ),
-            )
-
-        if order in ["ascending", "asc"]:
-            result = result[::-1]
-        elif order in ["descending", "desc"]:
-            result = result
-
-        if as_json is True:
-            json_ = {
-                "name": name,
-                "recent": [value.stock_as_json() for value in result],
-            }
-
-            return json.dumps(json_, sort_keys=False)
-        elif as_json is False:
-            df = pd.DataFrame.from_records([value.stock_to_dict() for value in result])
-            df.set_index("Date", inplace=True)
-
-            return df
-    else:
+    if not path_:
         raise RuntimeError("ERR#0004: data retrieval error while scraping.")
+    for elements_ in path_:
+        if elements_.xpath(".//td")[0].text_content() == "No results found":
+            raise IndexError(
+                "ERR#0007: stock information unavailable or not found."
+            )
+
+        info = [nested_.get("data-real-value") for nested_ in elements_.xpath(".//td")]
+        stock_date = datetime.strptime(
+            str(
+                datetime.fromtimestamp(int(info[0]), tz=pytz.timezone("GMT")).date()
+            ),
+            "%Y-%m-%d",
+        )
+
+        stock_close = float(info[1].replace(",", ""))
+        stock_open = float(info[2].replace(",", ""))
+        stock_high = float(info[3].replace(",", ""))
+        stock_low = float(info[4].replace(",", ""))
+
+        stock_volume = int(info[5])
+
+        result.insert(
+            len(result),
+            Data(
+                stock_date,
+                stock_open,
+                stock_high,
+                stock_low,
+                stock_close,
+                stock_volume,
+                stock_currency,
+                None,
+            ),
+        )
+
+    if order in ["ascending", "asc"]:
+        result = result[::-1]
+    elif order in ["descending", "desc"]:
+        result = result
+
+    if as_json is True:
+        json_ = {
+            "name": name,
+            "recent": [value.stock_as_json() for value in result],
+        }
+
+        return json.dumps(json_, sort_keys=False)
+    elif as_json is False:
+        df = pd.DataFrame.from_records([value.stock_to_dict() for value in result])
+        df.set_index("Date", inplace=True)
+
+        return df
 
 
 def get_stock_historical_data(

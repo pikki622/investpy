@@ -75,8 +75,6 @@ def economic_calendar(
         )
 
     if time_zone is None:
-        time_zone = "GMT"
-
         diff = datetime.strptime(
             strftime("%d/%m/%Y %H:%M", localtime()), "%d/%m/%Y %H:%M"
         ) - datetime.strptime(strftime("%d/%m/%Y %H:%M", gmtime()), "%d/%m/%Y %H:%M")
@@ -84,20 +82,22 @@ def economic_calendar(
         hour_diff = int(diff.total_seconds() / 3600)
         min_diff = int(diff.total_seconds() % 3600) * 60
 
-        if hour_diff != 0:
-            time_zone = (
+        time_zone = (
+            (
                 "GMT "
                 + ("+" if hour_diff > 0 else "")
                 + str(hour_diff)
                 + ":"
                 + ("00" if min_diff < 30 else "30")
             )
-    else:
-        if time_zone not in cst.TIMEZONES.keys():
-            raise ValueError(
-                "ERR#0108: the introduced time_zone does not exist, please consider"
-                " passing time_zone as None."
-            )
+            if hour_diff != 0
+            else "GMT"
+        )
+    elif time_zone not in cst.TIMEZONES.keys():
+        raise ValueError(
+            "ERR#0108: the introduced time_zone does not exist, please consider"
+            " passing time_zone as None."
+        )
 
     if not isinstance(time_filter, str):
         raise ValueError(
@@ -151,7 +151,7 @@ def economic_calendar(
 
     dates = [from_date, to_date]
 
-    if any(date is None for date in dates) is True:
+    if any(date is None for date in dates):
         data = {
             "timeZone": choice(cst.TIMEZONES[time_zone]),
             "timeFilter": cst.TIME_FILTERS[time_filter],
@@ -195,7 +195,7 @@ def economic_calendar(
         }
 
     if countries is not None:
-        def_countries = list()
+        def_countries = []
 
         available_countries = list(cst.COUNTRY_ID_FILTERS.keys())
 
@@ -206,11 +206,11 @@ def economic_calendar(
             if country in available_countries:
                 def_countries.append(cst.COUNTRY_ID_FILTERS[country])
 
-        if len(def_countries) > 0:
+        if def_countries:
             data["country[]"] = def_countries
 
     if categories is not None:
-        def_categories = list()
+        def_categories = []
 
         available_categories = list(cst.CATEGORY_FILTERS.keys())
 
@@ -222,11 +222,11 @@ def economic_calendar(
             if category in available_categories:
                 def_categories.append(cst.CATEGORY_FILTERS[category])
 
-        if len(def_categories) > 0:
+        if def_categories:
             data["category[]"] = def_categories
 
     if importances is not None:
-        def_importances = list()
+        def_importances = []
 
         # TODO: improve loop using lambda
         for importance in importances:
@@ -239,11 +239,11 @@ def economic_calendar(
                         def_importances.append(key)
                     break
 
-        if len(def_importances) > 0:
+        if def_importances:
             data["importance[]"] = def_importances
 
     id_, last_id = 0, 0
-    results = list()
+    results = []
 
     while True:
         req = requests.post(url, headers=headers, data=data)
@@ -262,7 +262,7 @@ def economic_calendar(
 
         for row in table:
             id_ = row.get("id")
-            if id_ == None:
+            if id_ is None:
                 curr_timescope = int(row.xpath("td")[0].get("id").replace("theDay", ""))
                 curr_date = datetime.fromtimestamp(
                     curr_timescope, tz=pytz.timezone("GMT")
@@ -282,7 +282,7 @@ def economic_calendar(
                             zone = value.xpath("span")[0].get("title").lower()
                             currency = value.text_content().strip()
                         elif value.get("class").__contains__("sentiment"):
-                            if value.get("data-img_key") == None:
+                            if value.get("data-img_key") is None:
                                 importance_rating = None
                             else:
                                 importance_rating = value.get("data-img_key").replace(
@@ -305,7 +305,7 @@ def economic_calendar(
                         "zone": zone,
                         "currency": None if currency == "" else currency,
                         "importance": None
-                        if importance_rating == None
+                        if importance_rating is None
                         else cst.IMPORTANCE_RATINGS[int(importance_rating)],
                         "event": event,
                         "actual": None if actual == "" else actual,

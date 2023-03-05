@@ -309,9 +309,7 @@ def get_currency_cross_recent_data(
         currency_crosses["name"].apply(unidecode).str.lower()
     ):
         raise RuntimeError(
-            "ERR#0054: the introduced currency_cross "
-            + str(currency_cross)
-            + " does not exist."
+            f"ERR#0054: the introduced currency_cross {str(currency_cross)} does not exist."
         )
 
     id_ = currency_crosses.loc[
@@ -359,72 +357,67 @@ def get_currency_cross_recent_data(
 
     if req.status_code != 200:
         raise ConnectionError(
-            "ERR#0015: error " + str(req.status_code) + ", try again later."
+            f"ERR#0015: error {str(req.status_code)}, try again later."
         )
 
     root_ = fromstring(req.text)
     path_ = root_.xpath(".//table[@id='curr_table']/tbody/tr")
-    result = list()
+    result = []
 
-    if path_:
-        for elements_ in path_:
-            if elements_.xpath(".//td")[0].text_content() == "No results found":
-                raise IndexError(
-                    "ERR#0055: currency_cross information unavailable or not found."
-                )
-
-            info = []
-
-            for nested_ in elements_.xpath(".//td"):
-                info.append(nested_.get("data-real-value"))
-
-            currency_cross_date = datetime.strptime(
-                str(
-                    datetime.fromtimestamp(int(info[0]), tz=pytz.timezone("GMT")).date()
-                ),
-                "%Y-%m-%d",
-            )
-
-            currency_cross_close = float(info[1].replace(",", ""))
-            currency_cross_open = float(info[2].replace(",", ""))
-            currency_cross_high = float(info[3].replace(",", ""))
-            currency_cross_low = float(info[4].replace(",", ""))
-
-            result.insert(
-                len(result),
-                Data(
-                    currency_cross_date,
-                    currency_cross_open,
-                    currency_cross_high,
-                    currency_cross_low,
-                    currency_cross_close,
-                    None,
-                    currency,
-                    None,
-                ),
-            )
-
-        if order in ["ascending", "asc"]:
-            result = result[::-1]
-        elif order in ["descending", "desc"]:
-            result = result
-
-        if as_json is True:
-            json_ = {
-                "name": name,
-                "recent": [value.currency_cross_as_json() for value in result],
-            }
-
-            return json.dumps(json_, sort_keys=False)
-        elif as_json is False:
-            df = pd.DataFrame.from_records(
-                [value.currency_cross_to_dict() for value in result]
-            )
-            df.set_index("Date", inplace=True)
-
-            return df
-    else:
+    if not path_:
         raise RuntimeError("ERR#0004: data retrieval error while scraping.")
+    for elements_ in path_:
+        if elements_.xpath(".//td")[0].text_content() == "No results found":
+            raise IndexError(
+                "ERR#0055: currency_cross information unavailable or not found."
+            )
+
+        info = [nested_.get("data-real-value") for nested_ in elements_.xpath(".//td")]
+        currency_cross_date = datetime.strptime(
+            str(
+                datetime.fromtimestamp(int(info[0]), tz=pytz.timezone("GMT")).date()
+            ),
+            "%Y-%m-%d",
+        )
+
+        currency_cross_close = float(info[1].replace(",", ""))
+        currency_cross_open = float(info[2].replace(",", ""))
+        currency_cross_high = float(info[3].replace(",", ""))
+        currency_cross_low = float(info[4].replace(",", ""))
+
+        result.insert(
+            len(result),
+            Data(
+                currency_cross_date,
+                currency_cross_open,
+                currency_cross_high,
+                currency_cross_low,
+                currency_cross_close,
+                None,
+                currency,
+                None,
+            ),
+        )
+
+    if order in ["ascending", "asc"]:
+        result = result[::-1]
+    elif order in ["descending", "desc"]:
+        result = result
+
+    if as_json is True:
+        json_ = {
+            "name": name,
+            "recent": [value.currency_cross_as_json() for value in result],
+        }
+
+        return json.dumps(json_, sort_keys=False)
+    elif as_json is False:
+        df = pd.DataFrame.from_records(
+            [value.currency_cross_to_dict() for value in result]
+        )
+        df.set_index("Date", inplace=True)
+
+        return df
 
 
 def get_currency_cross_historical_data(
@@ -559,13 +552,12 @@ def get_currency_cross_historical_data(
             " 'Daily', 'Weekly' or 'Monthly'."
         )
 
+    flag = True
+
     date_interval = {
         "intervals": [],
     }
-
-    flag = True
-
-    while flag is True:
+    while flag:
         diff = end_date.year - start_date.year
 
         if diff > 19:
@@ -615,9 +607,7 @@ def get_currency_cross_historical_data(
         currency_crosses["name"].apply(unidecode).str.lower()
     ):
         raise RuntimeError(
-            "ERR#0054: the introduced currency_cross "
-            + str(currency_cross)
-            + " does not exist."
+            f"ERR#0054: the introduced currency_cross {str(currency_cross)} does not exist."
         )
 
     id_ = currency_crosses.loc[
@@ -639,9 +629,11 @@ def get_currency_cross_historical_data(
         "second",
     ]
 
-    final = list()
+    final = []
 
     header = name + " Historical Data"
+
+    url = "https://www.investing.com/instruments/HistoricalDataAjax"
 
     for index in range(len(date_interval["intervals"])):
         interval_counter += 1
@@ -666,13 +658,11 @@ def get_currency_cross_historical_data(
             "Connection": "keep-alive",
         }
 
-        url = "https://www.investing.com/instruments/HistoricalDataAjax"
-
         req = requests.post(url, headers=head, data=params)
 
         if req.status_code != 200:
             raise ConnectionError(
-                "ERR#0015: error " + str(req.status_code) + ", try again later."
+                f"ERR#0015: error {str(req.status_code)}, try again later."
             )
 
         if not req.text:
@@ -681,75 +671,70 @@ def get_currency_cross_historical_data(
         root_ = fromstring(req.text)
         path_ = root_.xpath(".//table[@id='curr_table']/tbody/tr")
 
-        result = list()
+        result = []
 
-        if path_:
-            for elements_ in path_:
-                info = []
-
-                for nested_ in elements_.xpath(".//td"):
-                    info.append(nested_.get("data-real-value"))
-
-                if elements_.xpath(".//td")[0].text_content() == "No results found":
-                    if interval_counter < interval_limit:
-                        data_flag = False
-                    else:
-                        raise IndexError(
-                            "ERR#0055: currency_cross information unavailable or not"
-                            " found."
-                        )
-                else:
-                    data_flag = True
-
-                if data_flag is True:
-                    currency_cross_date = datetime.strptime(
-                        str(
-                            datetime.fromtimestamp(
-                                int(info[0]), tz=pytz.timezone("GMT")
-                            ).date()
-                        ),
-                        "%Y-%m-%d",
-                    )
-
-                    currency_cross_close = float(info[1].replace(",", ""))
-                    currency_cross_open = float(info[2].replace(",", ""))
-                    currency_cross_high = float(info[3].replace(",", ""))
-                    currency_cross_low = float(info[4].replace(",", ""))
-
-                    result.insert(
-                        len(result),
-                        Data(
-                            currency_cross_date,
-                            currency_cross_open,
-                            currency_cross_high,
-                            currency_cross_low,
-                            currency_cross_close,
-                            None,
-                            currency,
-                            None,
-                        ),
-                    )
-
-            if data_flag is True:
-                if order in ["ascending", "asc"]:
-                    result = result[::-1]
-                elif order in ["descending", "desc"]:
-                    result = result
-
-                if as_json is True:
-                    json_list = [value.currency_cross_as_json() for value in result]
-
-                    final.append(json_list)
-                elif as_json is False:
-                    df = pd.DataFrame.from_records(
-                        [value.currency_cross_to_dict() for value in result]
-                    )
-                    df.set_index("Date", inplace=True)
-
-                    final.append(df)
-        else:
+        if not path_:
             raise RuntimeError("ERR#0004: data retrieval error while scraping.")
 
+        for elements_ in path_:
+            info = [nested_.get("data-real-value") for nested_ in elements_.xpath(".//td")]
+            if elements_.xpath(".//td")[0].text_content() == "No results found":
+                if interval_counter < interval_limit:
+                    data_flag = False
+                else:
+                    raise IndexError(
+                        "ERR#0055: currency_cross information unavailable or not"
+                        " found."
+                    )
+            else:
+                data_flag = True
+
+            if data_flag is True:
+                currency_cross_date = datetime.strptime(
+                    str(
+                        datetime.fromtimestamp(
+                            int(info[0]), tz=pytz.timezone("GMT")
+                        ).date()
+                    ),
+                    "%Y-%m-%d",
+                )
+
+                currency_cross_close = float(info[1].replace(",", ""))
+                currency_cross_open = float(info[2].replace(",", ""))
+                currency_cross_high = float(info[3].replace(",", ""))
+                currency_cross_low = float(info[4].replace(",", ""))
+
+                result.insert(
+                    len(result),
+                    Data(
+                        currency_cross_date,
+                        currency_cross_open,
+                        currency_cross_high,
+                        currency_cross_low,
+                        currency_cross_close,
+                        None,
+                        currency,
+                        None,
+                    ),
+                )
+
+        if data_flag is True:
+            if order in ["ascending", "asc"]:
+                result = result[::-1]
+            elif order in ["descending", "desc"]:
+                result = result
+
+            if as_json is True:
+                json_list = [value.currency_cross_as_json() for value in result]
+
+                final.append(json_list)
+            elif as_json is False:
+                df = pd.DataFrame.from_records(
+                    [value.currency_cross_to_dict() for value in result]
+                )
+                df.set_index("Date", inplace=True)
+
+                final.append(df)
     if order in ["descending", "desc"]:
         final.reverse()
 
