@@ -285,72 +285,67 @@ def get_crypto_recent_data(crypto, as_json=False, order="ascending", interval="D
 
     if req.status_code != 200:
         raise ConnectionError(
-            "ERR#0015: error " + str(req.status_code) + ", try again later."
+            f"ERR#0015: error {str(req.status_code)}, try again later."
         )
 
     root_ = fromstring(req.text)
     path_ = root_.xpath(".//table[@id='curr_table']/tbody/tr")
-    result = list()
+    result = []
 
-    if path_:
-        for elements_ in path_:
-            if elements_.xpath(".//td")[0].text_content() == "No results found":
-                raise IndexError(
-                    "ERR#0087: crypto information unavailable or not found."
-                )
-
-            info = []
-
-            for nested_ in elements_.xpath(".//td"):
-                info.append(nested_.get("data-real-value"))
-
-            crypto_date = datetime.strptime(
-                str(
-                    datetime.fromtimestamp(int(info[0]), tz=pytz.timezone("GMT")).date()
-                ),
-                "%Y-%m-%d",
-            )
-
-            crypto_close = float(info[1].replace(",", ""))
-            crypto_open = float(info[2].replace(",", ""))
-            crypto_high = float(info[3].replace(",", ""))
-            crypto_low = float(info[4].replace(",", ""))
-
-            crypto_volume = int(info[5])
-
-            result.insert(
-                len(result),
-                Data(
-                    crypto_date,
-                    crypto_open,
-                    crypto_high,
-                    crypto_low,
-                    crypto_close,
-                    crypto_volume,
-                    crypto_currency,
-                    None,
-                ),
-            )
-
-        if order in ["ascending", "asc"]:
-            result = result[::-1]
-        elif order in ["descending", "desc"]:
-            result = result
-
-        if as_json is True:
-            json_ = {
-                "name": crypto_name,
-                "recent": [value.crypto_as_json() for value in result],
-            }
-
-            return json.dumps(json_, sort_keys=False)
-        elif as_json is False:
-            df = pd.DataFrame.from_records([value.crypto_to_dict() for value in result])
-            df.set_index("Date", inplace=True)
-
-            return df
-    else:
+    if not path_:
         raise RuntimeError("ERR#0004: data retrieval error while scraping.")
+    for elements_ in path_:
+        if elements_.xpath(".//td")[0].text_content() == "No results found":
+            raise IndexError(
+                "ERR#0087: crypto information unavailable or not found."
+            )
+
+        info = [nested_.get("data-real-value") for nested_ in elements_.xpath(".//td")]
+        crypto_date = datetime.strptime(
+            str(
+                datetime.fromtimestamp(int(info[0]), tz=pytz.timezone("GMT")).date()
+            ),
+            "%Y-%m-%d",
+        )
+
+        crypto_close = float(info[1].replace(",", ""))
+        crypto_open = float(info[2].replace(",", ""))
+        crypto_high = float(info[3].replace(",", ""))
+        crypto_low = float(info[4].replace(",", ""))
+
+        crypto_volume = int(info[5])
+
+        result.insert(
+            len(result),
+            Data(
+                crypto_date,
+                crypto_open,
+                crypto_high,
+                crypto_low,
+                crypto_close,
+                crypto_volume,
+                crypto_currency,
+                None,
+            ),
+        )
+
+    if order in ["ascending", "asc"]:
+        result = result[::-1]
+    elif order in ["descending", "desc"]:
+        result = result
+
+    if as_json is True:
+        json_ = {
+            "name": crypto_name,
+            "recent": [value.crypto_as_json() for value in result],
+        }
+
+        return json.dumps(json_, sort_keys=False)
+    elif as_json is False:
+        df = pd.DataFrame.from_records([value.crypto_to_dict() for value in result])
+        df.set_index("Date", inplace=True)
+
+        return df
 
 
 def get_crypto_historical_data(
@@ -491,7 +486,7 @@ def get_crypto_historical_data(
 
     flag = True
 
-    while flag is True:
+    while flag:
         diff = end_date.year - start_date.year
 
         if diff > 19:
@@ -565,7 +560,9 @@ def get_crypto_historical_data(
 
     header = crypto_name + " Historical Data"
 
-    final = list()
+    final = []
+
+    url = "https://www.investing.com/instruments/HistoricalDataAjax"
 
     for index in range(len(date_interval["intervals"])):
         interval_counter += 1
@@ -590,13 +587,11 @@ def get_crypto_historical_data(
             "Connection": "keep-alive",
         }
 
-        url = "https://www.investing.com/instruments/HistoricalDataAjax"
-
         req = requests.post(url, headers=head, data=params)
 
         if req.status_code != 200:
             raise ConnectionError(
-                "ERR#0015: error " + str(req.status_code) + ", try again later."
+                f"ERR#0015: error {str(req.status_code)}, try again later."
             )
 
         if not req.text:
@@ -605,76 +600,71 @@ def get_crypto_historical_data(
         root_ = fromstring(req.text)
         path_ = root_.xpath(".//table[@id='curr_table']/tbody/tr")
 
-        result = list()
+        result = []
 
-        if path_:
-            for elements_ in path_:
-                if elements_.xpath(".//td")[0].text_content() == "No results found":
-                    if interval_counter < interval_limit:
-                        data_flag = False
-                    else:
-                        raise IndexError(
-                            "ERR#0087: crypto information unavailable or not found."
-                        )
-                else:
-                    data_flag = True
-
-                info = []
-
-                for nested_ in elements_.xpath(".//td"):
-                    info.append(nested_.get("data-real-value"))
-
-                if data_flag is True:
-                    crypto_date = datetime.strptime(
-                        str(
-                            datetime.fromtimestamp(
-                                int(info[0]), tz=pytz.timezone("GMT")
-                            ).date()
-                        ),
-                        "%Y-%m-%d",
-                    )
-
-                    crypto_close = float(info[1].replace(",", ""))
-                    crypto_open = float(info[2].replace(",", ""))
-                    crypto_high = float(info[3].replace(",", ""))
-                    crypto_low = float(info[4].replace(",", ""))
-
-                    crypto_volume = int(info[5] or 0)
-
-                    result.insert(
-                        len(result),
-                        Data(
-                            crypto_date,
-                            crypto_open,
-                            crypto_high,
-                            crypto_low,
-                            crypto_close,
-                            crypto_volume,
-                            crypto_currency,
-                            None,
-                        ),
-                    )
-
-            if data_flag is True:
-                if order in ["ascending", "asc"]:
-                    result = result[::-1]
-                elif order in ["descending", "desc"]:
-                    result = result
-
-                if as_json is True:
-                    json_list = [value.crypto_as_json() for value in result]
-
-                    final.append(json_list)
-                elif as_json is False:
-                    df = pd.DataFrame.from_records(
-                        [value.crypto_to_dict() for value in result]
-                    )
-                    df.set_index("Date", inplace=True)
-
-                    final.append(df)
-        else:
+        if not path_:
             raise RuntimeError("ERR#0004: data retrieval error while scraping.")
 
+        for elements_ in path_:
+            if elements_.xpath(".//td")[0].text_content() == "No results found":
+                if interval_counter < interval_limit:
+                    data_flag = False
+                else:
+                    raise IndexError(
+                        "ERR#0087: crypto information unavailable or not found."
+                    )
+            else:
+                data_flag = True
+
+            info = [nested_.get("data-real-value") for nested_ in elements_.xpath(".//td")]
+            if data_flag is True:
+                crypto_date = datetime.strptime(
+                    str(
+                        datetime.fromtimestamp(
+                            int(info[0]), tz=pytz.timezone("GMT")
+                        ).date()
+                    ),
+                    "%Y-%m-%d",
+                )
+
+                crypto_close = float(info[1].replace(",", ""))
+                crypto_open = float(info[2].replace(",", ""))
+                crypto_high = float(info[3].replace(",", ""))
+                crypto_low = float(info[4].replace(",", ""))
+
+                crypto_volume = int(info[5] or 0)
+
+                result.insert(
+                    len(result),
+                    Data(
+                        crypto_date,
+                        crypto_open,
+                        crypto_high,
+                        crypto_low,
+                        crypto_close,
+                        crypto_volume,
+                        crypto_currency,
+                        None,
+                    ),
+                )
+
+        if data_flag is True:
+            if order in ["ascending", "asc"]:
+                result = result[::-1]
+            elif order in ["descending", "desc"]:
+                result = result
+
+            if as_json is True:
+                json_list = [value.crypto_as_json() for value in result]
+
+                final.append(json_list)
+            elif as_json is False:
+                df = pd.DataFrame.from_records(
+                    [value.crypto_to_dict() for value in result]
+                )
+                df.set_index("Date", inplace=True)
+
+                final.append(df)
     if order in ["descending", "desc"]:
         final.reverse()
 
@@ -795,7 +785,7 @@ def get_crypto_information(crypto, as_json=False):
 
     if req.status_code != 200:
         raise ConnectionError(
-            "ERR#0015: error " + str(req.status_code) + ", try again later."
+            f"ERR#0015: error {str(req.status_code)}, try again later."
         )
 
     root_ = fromstring(req.text)
@@ -816,24 +806,22 @@ def get_crypto_information(crypto, as_json=False):
     result.at[0, "Crypto Currency"] = name
     result.at[0, "Currency"] = currency
 
-    if path_:
-        for elements_ in path_:
-            element = elements_.xpath(".//span[@class='title']")[0]
-            title_ = element.text_content().replace(":", "")
-            if title_ == "Day's Range":
-                title_ = "Todays Range"
-            if title_ in result.columns.tolist():
-                result.at[0, title_] = element.getnext().text_content().strip()
-
-        result.replace({"N/A": None}, inplace=True)
-
-        if as_json is True:
-            json_ = result.iloc[0].to_dict()
-            return json_
-        elif as_json is False:
-            return result
-    else:
+    if not path_:
         raise RuntimeError("ERR#0004: data retrieval error while scraping.")
+    for elements_ in path_:
+        element = elements_.xpath(".//span[@class='title']")[0]
+        title_ = element.text_content().replace(":", "")
+        if title_ == "Day's Range":
+            title_ = "Todays Range"
+        if title_ in result.columns.tolist():
+            result.at[0, title_] = element.getnext().text_content().strip()
+
+    result.replace({"N/A": None}, inplace=True)
+
+    if as_json is True:
+        return result.iloc[0].to_dict()
+    elif as_json is False:
+        return result
 
 
 def get_cryptos_overview(as_json=False, n_results=100):

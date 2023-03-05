@@ -152,7 +152,7 @@ class SearchObj(object):
         if to_date.year - from_date.year > 19:
             intervals = self._calculate_intervals(from_date, to_date)
 
-            self.data = list()
+            self.data = []
 
             for interval in intervals:
                 headers, params = self._prepare_historical_request(
@@ -243,7 +243,7 @@ class SearchObj(object):
             (updated_path, True) if updated_path else (outdated_path, False)
         )
 
-        self.information = dict()
+        self.information = {}
 
         for elements_ in path_:
             if investing_updated:
@@ -256,9 +256,8 @@ class SearchObj(object):
                 element = element.getnext()
             try:
                 value = float(element.text_content().replace(",", ""))
-                if isinstance(value, float):
-                    if value.is_integer() is True:
-                        value = int(value)
+                if isinstance(value, float) and value.is_integer():
+                    value = int(value)
                 self.information[title] = value if value != "N/A" else None
                 continue
             except:
@@ -289,9 +288,8 @@ class SearchObj(object):
                     value = float(value.replace("B", "").replace(",", "")) * 1e9
                 elif value.__contains__("T"):
                     value = float(value.replace("T", "").replace(",", "")) * 1e12
-                if isinstance(value, float):
-                    if value.is_integer() is True:
-                        value = int(value)
+                if isinstance(value, float) and value.is_integer() is True:
+                    value = int(value)
                 self.information[title] = value if value != "N/A" else None
                 continue
             except:
@@ -510,7 +508,7 @@ class SearchObj(object):
         return headers, params
 
     def _calculate_intervals(self, from_date, to_date):
-        intervals = list()
+        intervals = []
 
         while True:
             diff = to_date.year - from_date.year
@@ -541,12 +539,14 @@ class SearchObj(object):
         return intervals
 
     def _data_retrieval(self, product, headers, params):
-        has_volume = (
-            True
-            if product
-            in ["stocks", "etfs", "indices", "cryptos", "commodities", "fxfutures"]
-            else False
-        )
+        has_volume = product in [
+            "stocks",
+            "etfs",
+            "indices",
+            "cryptos",
+            "commodities",
+            "fxfutures",
+        ]
         has_change_pct = True  # Every financial product has it
 
         url = "https://www.investing.com/instruments/HistoricalDataAjax"
@@ -564,7 +564,7 @@ class SearchObj(object):
         if not path_:
             raise RuntimeError("ERR#0004: data retrieval error while scraping.")
 
-        results = list()
+        results = []
 
         for elements_ in path_:
             info = []

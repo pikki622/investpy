@@ -106,12 +106,11 @@ def technical_indicators(name, country, product_type, interval="daily"):
             " are: " + ", ".join(cst.PRODUCT_TYPE_FILES.keys())
         )
 
-    if interval:
-        if interval not in cst.INTERVAL_FILTERS.keys():
-            raise ValueError(
-                "ERR#0120: introduced interval value does not exist. Available values"
-                " are: " + ", ".join(cst.INTERVAL_FILTERS.keys())
-            )
+    if interval and interval not in cst.INTERVAL_FILTERS.keys():
+        raise ValueError(
+            "ERR#0120: introduced interval value does not exist. Available values"
+            " are: " + ", ".join(cst.INTERVAL_FILTERS.keys())
+        )
 
     data = resource_to_data(path_to_data=cst.PRODUCT_TYPE_FILES[product_type])
 
@@ -119,24 +118,20 @@ def technical_indicators(name, country, product_type, interval="daily"):
         if country is not None:
             country = unidecode(country.lower().strip())
 
-            if country not in list(set(data["country"].str.lower())):
+            if country in list(set(data["country"].str.lower())):
+                data = data[data["country"] == country]
+            else:
                 raise ValueError(
                     "ERR#0124: introduced country does not exist or is not available."
                 )
 
-            data = data[data["country"] == country]
-        else:
-            if product_type != "commodity":
-                raise ValueError(
-                    "ERR#0123: country parameter is required with the introduced"
-                    " product_type."
-                )
+        elif product_type != "commodity":
+            raise ValueError(
+                "ERR#0123: country parameter is required with the introduced"
+                " product_type."
+            )
 
-    if product_type == "stock":
-        check = "symbol"
-    else:
-        check = "name"
-
+    check = "symbol" if product_type == "stock" else "name"
     name = unidecode(name.lower().strip())
 
     if name not in list(data[check].apply(unidecode).str.lower()):
@@ -169,13 +164,13 @@ def technical_indicators(name, country, product_type, interval="daily"):
 
     if req.status_code != 200:
         raise ConnectionError(
-            "ERR#0015: error " + str(req.status_code) + ", try again later."
+            f"ERR#0015: error {str(req.status_code)}, try again later."
         )
 
     root = fromstring(req.text)
     table = root.xpath(".//table[contains(@class, 'technicalIndicatorsTbl')]/tbody/tr")
 
-    tech_indicators = list()
+    tech_indicators = []
 
     for row in table:
         for value in row.xpath("td"):
@@ -286,12 +281,11 @@ def moving_averages(name, country, product_type, interval="daily"):
             " are: " + ", ".join(cst.PRODUCT_TYPE_FILES.keys())
         )
 
-    if interval:
-        if interval not in cst.INTERVAL_FILTERS.keys():
-            raise ValueError(
-                "ERR#0120: introduced interval value does not exist. Available values"
-                " are: " + ", ".join(cst.INTERVAL_FILTERS.keys())
-            )
+    if interval and interval not in cst.INTERVAL_FILTERS.keys():
+        raise ValueError(
+            "ERR#0120: introduced interval value does not exist. Available values"
+            " are: " + ", ".join(cst.INTERVAL_FILTERS.keys())
+        )
 
     data = resource_to_data(path_to_data=cst.PRODUCT_TYPE_FILES[product_type])
 
@@ -299,24 +293,20 @@ def moving_averages(name, country, product_type, interval="daily"):
         if country is not None:
             country = unidecode(country.lower().strip())
 
-            if country not in list(set(data["country"].str.lower())):
+            if country in list(set(data["country"].str.lower())):
+                data = data[data["country"] == country]
+            else:
                 raise ValueError(
                     "ERR#0124: introduced country does not exist or is not available."
                 )
 
-            data = data[data["country"] == country]
-        else:
-            if product_type != "commodity":
-                raise ValueError(
-                    "ERR#0123: country parameter is required with the introduced"
-                    " product_type."
-                )
+        elif product_type != "commodity":
+            raise ValueError(
+                "ERR#0123: country parameter is required with the introduced"
+                " product_type."
+            )
 
-    if product_type == "stock":
-        check = "symbol"
-    else:
-        check = "name"
-
+    check = "symbol" if product_type == "stock" else "name"
     name = unidecode(name.lower().strip())
 
     if name not in list(data[check].apply(unidecode).str.lower()):
@@ -349,54 +339,55 @@ def moving_averages(name, country, product_type, interval="daily"):
 
     if req.status_code != 200:
         raise ConnectionError(
-            "ERR#0015: error " + str(req.status_code) + ", try again later."
+            f"ERR#0015: error {str(req.status_code)}, try again later."
         )
 
     root = fromstring(req.text)
     table = root.xpath(".//table[contains(@class, 'movingAvgsTbl')]/tbody/tr")
 
-    moving_avgs = list()
+    moving_avgs = []
 
     for row in table:
         for value in row.xpath("td"):
-            if value.get("class") is not None:
-                if value.get("class").__contains__("symbol"):
-                    ma_period = value.text_content().strip().replace("MA", "")
-                    sma_signal = (
-                        value.getnext().xpath("span")[0].text_content().strip().lower()
-                    )
-                    sma_value = float(
-                        value.getnext()
-                        .text_content()
-                        .lower()
-                        .replace(sma_signal, "")
-                        .strip()
-                    )
-                    value = value.getnext()
-                    ema_signal = (
-                        value.getnext()
-                        .xpath(".//span")[0]
-                        .text_content()
-                        .strip()
-                        .lower()
-                    )
-                    ema_value = float(
-                        value.getnext()
-                        .text_content()
-                        .lower()
-                        .replace(ema_signal, "")
-                        .strip()
-                    )
+            if value.get("class") is not None and value.get(
+                "class"
+            ).__contains__("symbol"):
+                ma_period = value.text_content().strip().replace("MA", "")
+                sma_signal = (
+                    value.getnext().xpath("span")[0].text_content().strip().lower()
+                )
+                sma_value = float(
+                    value.getnext()
+                    .text_content()
+                    .lower()
+                    .replace(sma_signal, "")
+                    .strip()
+                )
+                value = value.getnext()
+                ema_signal = (
+                    value.getnext()
+                    .xpath(".//span")[0]
+                    .text_content()
+                    .strip()
+                    .lower()
+                )
+                ema_value = float(
+                    value.getnext()
+                    .text_content()
+                    .lower()
+                    .replace(ema_signal, "")
+                    .strip()
+                )
 
-                    moving_avgs.append(
-                        {
-                            "period": ma_period,
-                            "sma_value": sma_value,
-                            "sma_signal": sma_signal,
-                            "ema_value": ema_value,
-                            "ema_signal": ema_signal,
-                        }
-                    )
+                moving_avgs.append(
+                    {
+                        "period": ma_period,
+                        "sma_value": sma_value,
+                        "sma_signal": sma_signal,
+                        "ema_value": ema_value,
+                        "ema_signal": ema_signal,
+                    }
+                )
 
     return pd.DataFrame(moving_avgs)
 
@@ -490,12 +481,11 @@ def pivot_points(name, country, product_type, interval="daily"):
             " are: " + ", ".join(cst.PRODUCT_TYPE_FILES.keys())
         )
 
-    if interval:
-        if interval not in cst.INTERVAL_FILTERS.keys():
-            raise ValueError(
-                "ERR#0120: introduced interval value does not exist. Available values"
-                " are: " + ", ".join(cst.INTERVAL_FILTERS.keys())
-            )
+    if interval and interval not in cst.INTERVAL_FILTERS.keys():
+        raise ValueError(
+            "ERR#0120: introduced interval value does not exist. Available values"
+            " are: " + ", ".join(cst.INTERVAL_FILTERS.keys())
+        )
 
     data = resource_to_data(path_to_data=cst.PRODUCT_TYPE_FILES[product_type])
 
@@ -503,24 +493,20 @@ def pivot_points(name, country, product_type, interval="daily"):
         if country is not None:
             country = unidecode(country.lower().strip())
 
-            if country not in list(set(data["country"].str.lower())):
+            if country in list(set(data["country"].str.lower())):
+                data = data[data["country"] == country]
+            else:
                 raise ValueError(
                     "ERR#0124: introduced country does not exist or is not available."
                 )
 
-            data = data[data["country"] == country]
-        else:
-            if product_type != "commodity":
-                raise ValueError(
-                    "ERR#0123: country parameter is required with the introduced"
-                    " product_type."
-                )
+        elif product_type != "commodity":
+            raise ValueError(
+                "ERR#0123: country parameter is required with the introduced"
+                " product_type."
+            )
 
-    if product_type == "stock":
-        check = "symbol"
-    else:
-        check = "name"
-
+    check = "symbol" if product_type == "stock" else "name"
     name = unidecode(name.lower().strip())
 
     if name not in list(data[check].apply(unidecode).str.lower()):
@@ -553,23 +539,22 @@ def pivot_points(name, country, product_type, interval="daily"):
 
     if req.status_code != 200:
         raise ConnectionError(
-            "ERR#0015: error " + str(req.status_code) + ", try again later."
+            f"ERR#0015: error {str(req.status_code)}, try again later."
         )
 
     root = fromstring(req.text)
     header = root.xpath(".//table[contains(@class, 'crossRatesTbl')]/thead/tr/th")
 
-    values = dict()
-
-    for index, column in enumerate(header):
-        values[index] = column.text_content().strip().lower().replace(" ", "_")
-
+    values = {
+        index: column.text_content().strip().lower().replace(" ", "_")
+        for index, column in enumerate(header)
+    }
     table = root.xpath(".//table[contains(@class, 'crossRatesTbl')]/tbody/tr")
 
-    pivot_pts = list()
+    pivot_pts = []
 
     for row in table:
-        pivot_pt = dict()
+        pivot_pt = {}
         elements = row.xpath("td")
 
         for key, value in values.items():

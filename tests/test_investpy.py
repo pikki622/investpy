@@ -1308,15 +1308,11 @@ def test_investpy_search():
             },
         ]
 
-        if isinstance(results, list):
-            result = results[0]
-        else:
-            result = results
-
+        result = results[0] if isinstance(results, list) else results
         print(result)
 
         assert result.retrieve_recent_data() is not None
-        
+
         for date in dates:
             assert result.retrieve_historical_data(from_date=date['from_date'], to_date=date['to_date']) is not None
 
@@ -1375,7 +1371,7 @@ def test_investpy_technical():
     This function checks that investpy news retrieval functionality works as expected.
     """
 
-    params = list()
+    params = []
 
     for interval in list(investpy.utils.constant.INTERVAL_FILTERS.keys()):
         params.append({

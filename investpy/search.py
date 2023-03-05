@@ -80,12 +80,11 @@ def search_quotes(text, products=None, countries=None, n_results=None):
             " integer equal or higher than 1."
         )
 
-    if n_results is not None:
-        if n_results < 1:
-            raise ValueError(
-                "ERR#0088: n_results parameter is optional, but if specified, it must"
-                " be an integer equal or higher than 1."
-            )
+    if n_results is not None and n_results < 1:
+        raise ValueError(
+            "ERR#0088: n_results parameter is optional, but if specified, it must"
+            " be an integer equal or higher than 1."
+        )
 
     if products:
         try:
@@ -99,7 +98,7 @@ def search_quotes(text, products=None, countries=None, n_results=None):
             )
 
         condition = set(products).issubset(PRODUCT_FILTERS.keys())
-        if condition is False:
+        if not condition:
             raise ValueError(
                 'ERR#0095: products filtering parameter possible values are: "'
                 + ", ".join(PRODUCT_FILTERS.keys())
@@ -120,7 +119,7 @@ def search_quotes(text, products=None, countries=None, n_results=None):
             )
 
         condition = set(countries).issubset(COUNTRY_FILTERS.keys())
-        if condition is False:
+        if not condition:
             raise ValueError(
                 'ERR#0129: countries filtering parameter possible values are: "'
                 + ", ".join(COUNTRY_FILTERS.keys())
@@ -147,11 +146,11 @@ def search_quotes(text, products=None, countries=None, n_results=None):
 
     url = "https://www.investing.com/search/service/SearchInnerPage"
 
-    search_results = list()
+    search_results = []
 
     total_results = None
 
-    user_limit = True if n_results is not None else False
+    user_limit = n_results is not None
 
     while True:
         req = requests.post(url, headers=headers, data=params)
@@ -177,13 +176,11 @@ def search_quotes(text, products=None, countries=None, n_results=None):
         for quote in data["quotes"]:
             country, pair_type = quote["flag"], quote["pair_type"]
 
-            if countries is not None:
-                if quote["flag"] not in countries:
-                    continue
+            if countries is not None and quote["flag"] not in countries:
+                continue
 
-            if products is not None:
-                if quote["pair_type"] not in products:
-                    continue
+            if products is not None and quote["pair_type"] not in products:
+                continue
 
             pair_type = PAIR_FILTERS[quote["pair_type"]]
 
@@ -220,7 +217,7 @@ def search_quotes(text, products=None, countries=None, n_results=None):
         ):
             break
 
-    if len(search_results) < 1:
+    if not search_results:
         raise RuntimeError(
             "ERR#0093: no results found on Investing.com for the introduced query."
         )
@@ -261,12 +258,11 @@ def search_events(text, importances=None, countries=None, n_results=None):
             " integer equal or higher than 1."
         )
 
-    if n_results is not None:
-        if n_results < 1:
-            raise ValueError(
-                "ERR#0088: n_results parameter is optional, but if specified, it must"
-                " be an integer equal or higher than 1."
-            )
+    if n_results is not None and n_results < 1:
+        raise ValueError(
+            "ERR#0088: n_results parameter is optional, but if specified, it must"
+            " be an integer equal or higher than 1."
+        )
 
     params = {"search_text": text, "tab": "ec_event", "limit": 270, "offset": 0}
 
@@ -280,7 +276,7 @@ def search_events(text, importances=None, countries=None, n_results=None):
 
     url = "https://www.investing.com/search/service/SearchInnerPage"
 
-    search_results = list()
+    search_results = []
 
     total_results = None
 
@@ -308,13 +304,14 @@ def search_events(text, importances=None, countries=None, n_results=None):
         for event in events:
             country, pair_type = quote["flag"], quote["pair_type"]
 
-            if importances is not None:
-                if quote["pair_type"] not in importances:
-                    continue
+            if (
+                importances is not None
+                and quote["pair_type"] not in importances
+            ):
+                continue
 
-            if countries is not None:
-                if quote["flag"] not in countries:
-                    continue
+            if countries is not None and quote["flag"] not in countries:
+                continue
 
             print("TODO")
             ## pair_type = PAIR_FILTERS[quote['pair_type']]
@@ -345,7 +342,7 @@ def search_events(text, importances=None, countries=None, n_results=None):
         ):
             break
 
-    if len(search_results) < 1:
+    if not search_results:
         raise RuntimeError(
             "ERR#0093: no results found on Investing.com for the introduced query."
         )

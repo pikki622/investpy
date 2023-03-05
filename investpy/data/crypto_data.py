@@ -161,14 +161,13 @@ def cryptos_as_dict(columns=None, as_json=False):
 
     if columns is None:
         columns = cryptos.columns.tolist()
-    else:
-        if not isinstance(columns, list):
-            raise ValueError(
-                "ERR#0020: specified columns argument is not a list, it can just be"
-                " list type."
-            )
+    elif not isinstance(columns, list):
+        raise ValueError(
+            "ERR#0020: specified columns argument is not a list, it can just be"
+            " list type."
+        )
 
-    if not all(column in cryptos.columns.tolist() for column in columns):
+    if any(column not in cryptos.columns.tolist() for column in columns):
         raise ValueError(
             "ERR#0021: specified columns does not exist, available columns are "
             "<name, symbol, currency>"

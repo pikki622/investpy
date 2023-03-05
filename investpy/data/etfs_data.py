@@ -58,10 +58,7 @@ def etfs_as_df(country=None):
     etfs.drop(columns=["tag", "id"], inplace=True)
     etfs = etfs.where(pd.notnull(etfs), None)
 
-    if country is None:
-        etfs.reset_index(drop=True, inplace=True)
-        return etfs
-    else:
+    if country is not None:
         country = unidecode(country.strip().lower())
 
         if country not in etf_countries_as_list():
@@ -70,9 +67,8 @@ def etfs_as_df(country=None):
             )
 
         etfs = etfs[etfs["country"] == country]
-        etfs.reset_index(drop=True, inplace=True)
-
-        return etfs
+    etfs.reset_index(drop=True, inplace=True)
+    return etfs
 
 
 def etfs_as_list(country=None):
@@ -127,15 +123,14 @@ def etfs_as_list(country=None):
 
     if country is None:
         return etfs["name"].tolist()
-    else:
-        country = unidecode(country.strip().lower())
+    country = unidecode(country.strip().lower())
 
-        if country not in etf_countries_as_list():
-            raise ValueError(
-                "ERR#0034: country " + country + " not found, check if it is correct."
-            )
+    if country not in etf_countries_as_list():
+        raise ValueError(
+            "ERR#0034: country " + country + " not found, check if it is correct."
+        )
 
-        return etfs[etfs["country"] == country]["name"].tolist()
+    return etfs[etfs["country"] == country]["name"].tolist()
 
 
 def etfs_as_dict(country=None, columns=None, as_json=False):
@@ -205,14 +200,13 @@ def etfs_as_dict(country=None, columns=None, as_json=False):
 
     if columns is None:
         columns = etfs.columns.tolist()
-    else:
-        if not isinstance(columns, list):
-            raise ValueError(
-                "ERR#0020: specified columns argument is not a list, it can just be"
-                " list type."
-            )
+    elif not isinstance(columns, list):
+        raise ValueError(
+            "ERR#0020: specified columns argument is not a list, it can just be"
+            " list type."
+        )
 
-    if not all(column in etfs.columns.tolist() for column in columns):
+    if any(column not in etfs.columns.tolist() for column in columns):
         raise ValueError(
             "ERR#0021: specified columns does not exist, available columns are"
             " <country, name, full_name, symbol, isin, asset_class, currency,"
@@ -220,24 +214,24 @@ def etfs_as_dict(country=None, columns=None, as_json=False):
         )
 
     if country is None:
-        if as_json:
-            return json.dumps(etfs[columns].to_dict(orient="records"))
-        else:
-            return etfs[columns].to_dict(orient="records")
+        return (
+            json.dumps(etfs[columns].to_dict(orient="records"))
+            if as_json
+            else etfs[columns].to_dict(orient="records")
+        )
+    country = unidecode(country.strip().lower())
+
+    if country not in etf_countries_as_list():
+        raise ValueError(
+            "ERR#0034: country " + country + " not found, check if it is correct."
+        )
+
+    if as_json:
+        return json.dumps(
+            etfs[etfs["country"] == country][columns].to_dict(orient="records")
+        )
     else:
-        country = unidecode(country.strip().lower())
-
-        if country not in etf_countries_as_list():
-            raise ValueError(
-                "ERR#0034: country " + country + " not found, check if it is correct."
-            )
-
-        if as_json:
-            return json.dumps(
-                etfs[etfs["country"] == country][columns].to_dict(orient="records")
-            )
-        else:
-            return etfs[etfs["country"] == country][columns].to_dict(orient="records")
+        return etfs[etfs["country"] == country][columns].to_dict(orient="records")
 
 
 def etf_countries_as_list():

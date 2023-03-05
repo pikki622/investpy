@@ -57,10 +57,7 @@ def funds_as_df(country=None):
     funds.drop(columns=["tag", "id"], inplace=True)
     funds = funds.where(pd.notnull(funds), None)
 
-    if country is None:
-        funds.reset_index(drop=True, inplace=True)
-        return funds
-    else:
+    if country is not None:
         country = unidecode(country.strip().lower())
 
         if country not in fund_countries_as_list():
@@ -69,9 +66,8 @@ def funds_as_df(country=None):
             )
 
         funds = funds[funds["country"] == unidecode(country.lower())]
-        funds.reset_index(drop=True, inplace=True)
-
-        return funds
+    funds.reset_index(drop=True, inplace=True)
+    return funds
 
 
 def funds_as_list(country=None):
@@ -124,15 +120,14 @@ def funds_as_list(country=None):
 
     if country is None:
         return funds["name"].tolist()
-    else:
-        country = unidecode(country.strip().lower())
+    country = unidecode(country.strip().lower())
 
-        if country not in fund_countries_as_list():
-            raise ValueError(
-                "ERR#0034: country " + country + " not found, check if it is correct."
-            )
+    if country not in fund_countries_as_list():
+        raise ValueError(
+            "ERR#0034: country " + country + " not found, check if it is correct."
+        )
 
-        return funds[funds["country"] == country]["name"].tolist()
+    return funds[funds["country"] == country]["name"].tolist()
 
 
 def funds_as_dict(country=None, columns=None, as_json=False):
@@ -199,38 +194,37 @@ def funds_as_dict(country=None, columns=None, as_json=False):
 
     if columns is None:
         columns = funds.columns.tolist()
-    else:
-        if not isinstance(columns, list):
-            raise ValueError(
-                "ERR#0020: specified columns argument is not a list, it can just be"
-                " list type."
-            )
+    elif not isinstance(columns, list):
+        raise ValueError(
+            "ERR#0020: specified columns argument is not a list, it can just be"
+            " list type."
+        )
 
-    if not all(column in funds.columns.tolist() for column in columns):
+    if any(column not in funds.columns.tolist() for column in columns):
         raise ValueError(
             "ERR#0023: specified columns does not exist, available columns are "
             "<country, name, symbol, issuer, isin, asset_class, currency, underlying>"
         )
 
     if country is None:
-        if as_json:
-            return json.dumps(funds[columns].to_dict(orient="records"))
-        else:
-            return funds[columns].to_dict(orient="records")
+        return (
+            json.dumps(funds[columns].to_dict(orient="records"))
+            if as_json
+            else funds[columns].to_dict(orient="records")
+        )
+    country = unidecode(country.strip().lower())
+
+    if country not in fund_countries_as_list():
+        raise ValueError(
+            "ERR#0034: country " + country + " not found, check if it is correct."
+        )
+
+    if as_json:
+        return json.dumps(
+            funds[funds["country"] == country][columns].to_dict(orient="records")
+        )
     else:
-        country = unidecode(country.strip().lower())
-
-        if country not in fund_countries_as_list():
-            raise ValueError(
-                "ERR#0034: country " + country + " not found, check if it is correct."
-            )
-
-        if as_json:
-            return json.dumps(
-                funds[funds["country"] == country][columns].to_dict(orient="records")
-            )
-        else:
-            return funds[funds["country"] == country][columns].to_dict(orient="records")
+        return funds[funds["country"] == country][columns].to_dict(orient="records")
 
 
 def fund_countries_as_list():
